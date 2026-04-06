@@ -34,80 +34,80 @@ public class MoviesHandler extends BaseHttpHandler {
     }
 
     @Override
-    public void handle(HttpExchange ex) throws IOException {
-        String method = ex.getRequestMethod();
+    public void handle(HttpExchange exchange) throws IOException {
+        String method = exchange.getRequestMethod();
 
-        String path = ex.getRequestURI().getPath();
+        String path = exchange.getRequestURI().getPath();
         String[] pathList = path.split("/");
 
         if (method.equalsIgnoreCase("GET")) {
-            methodGet(ex, pathList);
+            methodGet(exchange, pathList);
         } else if (method.equalsIgnoreCase("POST")) {
-            methodPost(ex);
+            methodPost(exchange);
         } else if (method.equalsIgnoreCase("DELETE")) {
-            methodDelete(ex, pathList);
+            methodDelete(exchange, pathList);
         }
     }
 
-    private void methodGet(HttpExchange ex, String[] pathList) throws IOException {
+    private void methodGet(HttpExchange exchange, String[] pathList) throws IOException {
         try {
             if (pathList.length == 2) {
-                String query = ex.getRequestURI().getQuery();
+                String query = exchange.getRequestURI().getQuery();
                 if (query != null) {
                     String yearParam = extractYearParam(query);
                     if (yearParam != null) {
                         try {
                             int year = Integer.parseInt(yearParam);
-                            sendJson(ex, 200, gson.toJson(moviesStore.getMoviesByYear(year)));
+                            sendJson(exchange, 200, gson.toJson(moviesStore.getMoviesByYear(year)));
                         } catch (NumberFormatException e) {
-                            sendJson(ex, 400, "{\n" +
+                            sendJson(exchange, 400, "{\n" +
                                     "     \"error\": \"Некорректный параметр запроса — year\",\n" +
                                     "   }");
                         }
                     } else {
-                        sendJson(ex, 200, gson.toJson(moviesStore.getMovies().values()));
+                        sendJson(exchange, 200, gson.toJson(moviesStore.getMovies().values()));
                     }
                 } else {
-                    sendJson(ex, 200, gson.toJson(moviesStore.getMovies().values()));
+                    sendJson(exchange, 200, gson.toJson(moviesStore.getMovies().values()));
                 }
             } else {
                 int idValue = Integer.parseInt(pathList[2].trim()); // Пытаемся преобразовать
                 HashMap<Integer, Movie> movies = moviesStore.getMovies();
                 if (movies.containsKey(idValue)) {
-                    sendJson(ex, 200, gson.toJson(movies.get(idValue)));
+                    sendJson(exchange, 200, gson.toJson(movies.get(idValue)));
                 } else {
-                    sendJson(ex, 404, "{\n" +
+                    sendJson(exchange, 404, "{\n" +
                             "     \"error\": \"Фильм не найден\",\n" +
                             "   }");
                 }
             }
         } catch (NumberFormatException e) {
-            sendJson(ex, 400, "{\n" +
+            sendJson(exchange, 400, "{\n" +
                     "     \"error\": \"Некорректный ID\",\n" +
                     "   }");
         } catch (Exception exception) {
-            sendJson(ex, 400, " {\n" +
+            sendJson(exchange, 400, " {\n" +
                     "     \"error\": \"Ошибка вывода информации о фильмах\",\n" +
                     "   }");
         }
     }
 
-    private void methodPost(HttpExchange ex) throws IOException {
-        Map<String, List<String>> headers = ex.getRequestHeaders();
+    private void methodPost(HttpExchange exchange) throws IOException {
+        Map<String, List<String>> headers = exchange.getRequestHeaders();
         if (headers.containsKey("Content-Type")) {
             List<String> contentTypes = headers.get("Content-Type");
             String contentType = contentTypes.get(0); // Получаем первое значение заголовка
 
             if (!contentType.equals("application/json; charset=UTF-8")) {
-                sendJson(ex, 415, "Данный тип данных не поддерживается");
+                sendJson(exchange, 415, "Данный тип данных не поддерживается");
                 return;
             }
         } else {
-            sendJson(ex, 415, "");
+            sendJson(exchange, 415, "");
             return;
         }
 
-        String requestBody = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        String requestBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
 
         try {
             JsonElement jsonElement = JsonParser.parseString(requestBody);
@@ -118,21 +118,21 @@ public class MoviesHandler extends BaseHttpHandler {
 
                 if (details.isEmpty()) {
                     int id = moviesStore.addMovie(movie);
-                    sendJson(ex, 200, "{\"id\": " + id + "}");
+                    sendJson(exchange, 200, "{\"id\": " + id + "}");
                 } else {
-                    sendJson(ex, 422, "{\"error\": \"Ошибка валидации\", \"details\": " + gson.toJson(details) + "}");
+                    sendJson(exchange, 422, "{\"error\": \"Ошибка валидации\", \"details\": " + gson.toJson(details) + "}");
                 }
             } else {
-                sendJson(ex, 422, "{\"error\": \"Ошибка добавления фильма\", \"details\": \"Данные переданы не в формате JSON\"}");
+                sendJson(exchange, 422, "{\"error\": \"Ошибка добавления фильма\", \"details\": \"Данные переданы не в формате JSON\"}");
             }
         } catch (Exception exception) {
-            sendJson(ex, 422, " {\n" +
+            sendJson(exchange, 422, " {\n" +
                     "     \"error\": \"Ошибка добавления фильма\",\n" +
                     "   }");
         }
     }
 
-    private void methodDelete(HttpExchange ex, String[] pathList) throws IOException {
+    private void methodDelete(HttpExchange exchange, String[] pathList) throws IOException {
 
         try {
             if (pathList.length == 3) {
@@ -140,23 +140,23 @@ public class MoviesHandler extends BaseHttpHandler {
                 HashMap<Integer, Movie> movies = moviesStore.getMovies();
                 if (movies.containsKey(idValue)) {
                     movies.remove(idValue);
-                    sendJson(ex, 204, "Фильм удален");
+                    sendJson(exchange, 204, "Фильм удален");
                 } else {
-                    sendJson(ex, 404, "{\n" +
+                    sendJson(exchange, 404, "{\n" +
                             "     \"error\": \"Фильм не найден\",\n" +
                             "   }");
                 }
             } else {
-                sendJson(ex, 400, "{\n" +
+                sendJson(exchange, 400, "{\n" +
                         "     \"error\": \"Ошибка при удалении фильма\",\n" +
                         "   }");
             }
         } catch (NumberFormatException e) {
-            sendJson(ex, 400, "{\n" +
+            sendJson(exchange, 400, "{\n" +
                     "     \"error\": \"Некорректный ID\",\n" +
                     "   }");
         } catch (Exception exception) {
-            sendJson(ex, 400, "{\n" +
+            sendJson(exchange, 400, "{\n" +
                     "     \"error\": \"Ошибка при удалении фильма\",\n" +
                     "   }");
         }
